@@ -1,0 +1,278 @@
+Disassembly Listing for joh19042_homework_4_ee2361
+Generated From:
+C:/Users/nacob/MPLABXProjects/joh19042_homework_4_ee2361.X/dist/default/debug/joh19042_homework_4_ee2361.X.debug.elf
+Apr 13, 2021 8:45:25 AM
+
+---  C:/Users/nacob/MPLABXProjects/joh19042_homework_4_ee2361.X/disc08_UART.c  --------------------------
+1:                 /*
+2:                  * File:   disc08_UART.c
+3:                  * Author: joh19042
+4:                  *
+5:                  * Created on April 13, 2021, 8:10 AM
+6:                  */
+7:                 
+8:                 
+9:                 #include <p24Fxxxx.h>
+10:                #include <xc.h>
+11:                #include <stdlib.h>
+12:                
+13:                // PIC24FJ64GA002 Configuration Bit Settings
+14:                // CW1: FLASH CONFIGURATION WORD 1 (see PIC24 Family Reference Manual 24.1)
+15:                #pragma config ICS = PGx1          // Comm Channel Select (Emulator EMUC1/EMUD1 pins are shared with PGC1/PGD1)
+16:                #pragma config FWDTEN = OFF        // Watchdog Timer Enable (Watchdog Timer is disabled)
+17:                #pragma config GWRP = OFF          // General Code Segment Write Protect (Writes to program memory are allowed)
+18:                #pragma config GCP = OFF           // General Code Segment Code Protect (Code protection is disabled)
+19:                #pragma config JTAGEN = OFF        // JTAG Port Enable (JTAG port is disabled)
+20:                
+21:                
+22:                // CW2: FLASH CONFIGURATION WORD 2 (see PIC24 Family Reference Manual 24.1)
+23:                #pragma config POSCMOD = NONE           // Primary Oscillator Select (Primary oscillator disabled. 
+24:                					// Primary Oscillator refers to an external osc connected to the OSC1 and OSC2 pins)
+25:                #pragma config I2C1SEL = PRI       // I2C1 Pin Location Select (Use default SCL1/SDA1 pins)
+26:                #pragma config IOL1WAY = OFF       // IOLOCK Protection (IOLOCK may be changed via unlocking seq)
+27:                #pragma config OSCIOFNC = ON       // OSC2/CLKO/RC15 functions as port I/O (RC15)
+28:                #pragma config FCKSM = CSECME      // Clock Switching and Monitor (Clock switching is enabled, 
+29:                                                       // Fail-Safe Clock Monitor is enabled)
+30:                #pragma config FNOSC = FRCPLL      // Oscillator Select (Fast RC Oscillator with PLL module (FRCPLL))
+31:                
+32:                volatile unsigned char buffer[64]; //64 byte buffer
+33:                volatile unsigned char front = 0; //pointers to front
+34:                volatile unsigned char back = 0; // pointer to back
+35:                
+36:                // U1RXIF is set
+37:                void __attribute__((__interrupt__,__auto_psv__)) _U1RXInterrupt(void)
+38:                {
+0002C8  BE9F80     MOV.D W0, [W15++]
+0002CA  BE9F82     MOV.D W2, [W15++]
+0002CC  F80034     PUSH PSVPAG
+0002CE  200000     MOV #0x0, W0
+0002D0  8801A0     MOV W0, PSVPAG
+0002D2  FA0000     LNK #0x0
+39:                    IFS0bits.U1RXIF = 0;
+0002D4  A96085     BCLR 0x85, #3
+40:                    buffer[front++] = U1RXREG;
+0002D6  BFC800     MOV.B front, WREG
+0002D8  FB8080     ZE W0, W1
+0002DA  801132     MOV U1RXREG, W2
+0002DC  784182     MOV.B W2, W3
+0002DE  208022     MOV #0x802, W2
+0002E0  78F103     MOV.B W3, [W2+W1]
+0002E2  E84000     INC.B W0, W0
+0002E4  B7E800     MOV.B WREG, front
+41:                    front &= 63;
+0002E6  BFC800     MOV.B front, WREG
+0002E8  B243F0     AND.B #0x3F, W0
+0002EA  B7E800     MOV.B WREG, front
+42:                }
+0002EC  FA8000     ULNK
+0002EE  F90034     POP PSVPAG
+0002F0  BE014F     MOV.D [--W15], W2
+0002F2  BE004F     MOV.D [--W15], W0
+0002F4  064000     RETFIE
+43:                
+44:                // Transmit stuff; wait until U1TXIF is set (ready to be written to))
+45:                void PPutch(const unsigned char c)
+46:                {
+0002FC  FA0002     LNK #0x2
+0002FE  784F00     MOV.B W0, [W14]
+47:                    while (!IFS0bits.U1TXIF) ;
+000300  000000     NOP
+000302  800421     MOV IFS0, W1
+000304  210000     MOV #0x1000, W0
+000306  608000     AND W1, W0, W0
+000308  E00000     CP0 W0
+00030A  32FFFB     BRA Z, .L3
+48:                    IFS0bits.U1TXIF = 0;
+00030C  A98085     BCLR 0x85, #4
+49:                    U1TXREG = c;
+00030E  FB801E     ZE [W14], W0
+000310  881120     MOV W0, U1TXREG
+50:                }
+000312  FA8000     ULNK
+000314  060000     RETURN
+51:                
+52:                unsigned char PGetch(void)
+53:                {
+000316  FA0002     LNK #0x2
+54:                    unsigned char x;
+55:                
+56:                    while (front == back) ;
+000318  000000     NOP
+00031A  208001     MOV #0x800, W1
+00031C  784091     MOV.B [W1], W1
+00031E  BFC801     MOV.B back, WREG
+000320  50CF80     SUB.B W1, W0, [W15]
+000322  32FFFB     BRA Z, .L5
+57:                    x = buffer[back++];
+000324  BFC801     MOV.B back, WREG
+000326  FB8080     ZE W0, W1
+000328  208022     MOV #0x802, W2
+00032A  78CF62     MOV.B [W2+W1], [W14]
+00032C  E84000     INC.B W0, W0
+00032E  B7E801     MOV.B WREG, back
+58:                    back &= 63;
+000330  BFC801     MOV.B back, WREG
+000332  B243F0     AND.B #0x3F, W0
+000334  B7E801     MOV.B WREG, back
+59:                    return x;
+000336  78401E     MOV.B [W14], W0
+60:                }
+000338  FA8000     ULNK
+00033A  060000     RETURN
+61:                
+62:                
+63:                void setup(void)
+64:                {
+00033C  FA0000     LNK #0x0
+65:                    CLKDIVbits.RCDIV = 0;
+00033E  803A21     MOV CLKDIV, W1
+000340  2F8FF0     MOV #0xF8FF, W0
+000342  608000     AND W1, W0, W0
+000344  883A20     MOV W0, CLKDIV
+66:                    AD1PCFG = 0x9fff;  // For digital I/O.
+000346  29FFF0     MOV #0x9FFF, W0
+000348  881960     MOV W0, AD1PCFG
+67:                    
+68:                    // I think the following two lines are irrelevant. The UART doc
+69:                    // Page 3, when describing the UARTEN bit in UxMODE says that when UARTEN
+70:                    // is set, TRISx are ignored and instead UEN and UTXEN control pins.
+71:                    _TRISB6 = 0;  // U1TX output
+00034A  A9C2C8     BCLR TRISB, #6
+72:                    _TRISB10 = 1; // U1RX input
+00034C  A842C9     BSET 0x2C9, #2
+73:                
+74:                    U1MODE = 0;  // UEN<1:0> bits control the pins
+00034E  EF2220     CLR U1MODE
+75:                    // U1BRG = 34; // 115200 baud,
+76:                    // U1MODEbits.BRGH = 1;
+77:                    U1MODEbits.BRGH = 0;
+000350  A96220     BCLR U1MODE, #3
+78:                    U1BRG = 25; // 38400 baud (check the calculation with the datasheet)
+000352  200190     MOV #0x19, W0
+000354  881140     MOV W0, U1BRG
+79:                    U1MODEbits.UEN = 0;
+000356  801101     MOV U1MODE, W1
+000358  2FCFF0     MOV #0xFCFF, W0
+00035A  608000     AND W1, W0, W0
+00035C  881100     MOV W0, U1MODE
+80:                    U1MODEbits.UARTEN = 1; // Enables receiving
+00035E  A8E221     BSET 0x221, #7
+81:                    U1STAbits.UTXEN = 1; // Enables transmitting
+000360  A84223     BSET 0x223, #2
+82:                
+83:                    // Peripheral Pin Select 
+84:                    __builtin_write_OSCCONL(OSCCON & 0xbf); // unlock PPS
+000362  803A11     MOV OSCCON, W1
+000364  200BF0     MOV #0xBF, W0
+000366  608100     AND W1, W0, W2
+000368  200460     MOV #0x46, W0
+00036A  200571     MOV #0x57, W1
+00036C  207423     MOV #0x742, W3
+00036E  784980     MOV.B W0, [W3]
+000370  784981     MOV.B W1, [W3]
+000372  784982     MOV.B W2, [W3]
+85:                    _RP6R = 0x0003;   //RB6->UART1:U1TX; See Table 10-3 on P109 of the datasheet
+000374  803631     MOV RPOR3, W1
+000376  2FFE00     MOV #0xFFE0, W0
+000378  608000     AND W1, W0, W0
+00037A  B30030     IOR #0x3, W0
+00037C  883630     MOV W0, RPOR3
+86:                    _U1RXR = 10;   //RB10->UART1:U1RX;
+00037E  803521     MOV RPINR18, W1
+000380  2FFE00     MOV #0xFFE0, W0
+000382  608000     AND W1, W0, W0
+000384  B300A0     IOR #0xA, W0
+000386  883520     MOV W0, RPINR18
+87:                    __builtin_write_OSCCONL(OSCCON | 0x40); // lock   PPS
+000388  803A10     MOV OSCCON, W0
+00038A  780100     MOV W0, W2
+00038C  A06002     BSET W2, #6
+00038E  200460     MOV #0x46, W0
+000390  200571     MOV #0x57, W1
+000392  207423     MOV #0x742, W3
+000394  784980     MOV.B W0, [W3]
+000396  784981     MOV.B W1, [W3]
+000398  784982     MOV.B W2, [W3]
+88:                
+89:                    IFS0bits.U1RXIF = 0;
+00039A  A96085     BCLR 0x85, #3
+90:                    IEC0bits.U1RXIE = 1;
+00039C  A86095     BSET 0x95, #3
+91:                }
+00039E  FA8000     ULNK
+0003A0  060000     RETURN
+92:                
+93:                int main(int argc, char *argv[])
+94:                {
+0003A2  FA0008     LNK #0x8
+0003A4  980720     MOV W0, [W14+4]
+0003A6  980731     MOV W1, [W14+6]
+95:                
+96:                    setup();
+0003A8  07FFC9     RCALL setup
+97:                
+98:                    int i;
+99:                
+100:                   // waste some time
+101:                   for (i = 0; i < 30000; i++) i = i;
+0003AA  EB0000     CLR W0
+0003AC  780F00     MOV W0, [W14]
+0003AE  370001     BRA .L8
+0003B0  E80F1E     INC [W14], [W14]
+0003B2  2752F0     MOV #0x752F, W0
+0003B4  78009E     MOV [W14], W1
+0003B6  508F80     SUB W1, W0, [W15]
+0003B8  34FFFB     BRA LE, .L9
+102:               
+103:                   // transmit data on UART, this needs to 
+104:                   for (i = ' '; i < 0x7f; i++)
+0003BA  200200     MOV #0x20, W0
+0003BC  780F00     MOV W0, [W14]
+0003BE  370004     BRA .L10
+0003C6  E80F1E     INC [W14], [W14]
+0003C8  2007E0     MOV #0x7E, W0
+0003CA  78009E     MOV [W14], W1
+0003CC  508F80     SUB W1, W0, [W15]
+0003CE  34FFF8     BRA LE, .L11
+105:                       PPutch(i);
+0003C0  78001E     MOV [W14], W0
+0003C2  784000     MOV.B W0, W0
+0003C4  07FF9B     RCALL PPutch
+106:                   PPutch(0x0D);  // new line characters
+0003D0  B3C0D0     MOV.B #0xD, W0
+0003D2  07FF94     RCALL PPutch
+107:                   PPutch(0x0A);
+0003D4  B3C0A0     MOV.B #0xA, W0
+0003D6  07FF92     RCALL PPutch
+108:               
+109:                   // This is where we receive
+110:                   while (1)
+111:                   {
+112:                       unsigned int x;
+113:               
+114:                       x = PGetch();
+0003D8  07FF9E     RCALL PGetch
+0003DA  FB8000     ZE W0, W0
+0003DC  980710     MOV W0, [W14+2]
+115:                       if (x>='a' && x<='z')
+0003DE  90009E     MOV [W14+2], W1
+0003E0  200600     MOV #0x60, W0
+0003E2  508F80     SUB W1, W0, [W15]
+0003E4  360007     BRA LEU, .L12
+0003E6  90009E     MOV [W14+2], W1
+0003E8  2007A0     MOV #0x7A, W0
+0003EA  508F80     SUB W1, W0, [W15]
+0003EC  3E0003     BRA GTU, .L12
+116:                           x += 'A' - 'a';
+0003EE  90001E     MOV [W14+2], W0
+0003F0  B10200     SUB #0x20, W0
+0003F2  980710     MOV W0, [W14+2]
+117:                       PPutch(x);
+0003F4  90001E     MOV [W14+2], W0
+0003F6  784000     MOV.B W0, W0
+0003F8  07FF81     RCALL PPutch
+118:                   }
+0003FA  37FFEE     BRA .L13, .LBB2
+119:               
+120:                   return 0; // never reached (we hope)
+121:               }
